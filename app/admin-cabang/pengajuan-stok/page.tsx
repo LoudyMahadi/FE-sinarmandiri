@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 import { PackagePlus } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+
 type Product = { id: string; name: string };
 type StockRequestRow = {
   id: string;
@@ -14,7 +15,7 @@ type StockRequestRow = {
   product: { name: string } | null;
 };
 
-export default function PengajuanStokPage() {
+function PengajuanStokContent() {
   const supabase = createClient();
   const searchParams = useSearchParams();
   const [storeId, setStoreId] = useState('');
@@ -31,9 +32,11 @@ export default function PengajuanStokPage() {
     setRequests(await res.json());
   };
 
- useEffect(() => {
+  useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: profile } = await supabase
@@ -53,8 +56,9 @@ export default function PengajuanStokPage() {
       const preselect = searchParams.get('product');
       if (preselect) setSelectedProduct(preselect);
     };
+
     init();
-  }, []);
+  }, [searchParams, supabase]);
 
   const handleSubmit = async () => {
     const parsedQty = Number(qty);
@@ -66,7 +70,9 @@ export default function PengajuanStokPage() {
     setSubmitting(true);
     setMessage('');
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-requests`, {
@@ -116,7 +122,6 @@ export default function PengajuanStokPage() {
       <Topbar title="Pengajuan Permintaan Stok" subtitle="Ajukan tambahan stok barang ke toko pusat" />
 
       <div className="p-6 grid grid-cols-2 gap-6">
-        {/* form pengajuan */}
         <div>
           <h2 className="text-sm font-medium text-gray-700 mb-3">Buat Pengajuan Baru</h2>
           <div className="bg-white rounded-lg border border-gray-200 p-5">
@@ -156,7 +161,6 @@ export default function PengajuanStokPage() {
           </div>
         </div>
 
-        {/* riwayat pengajuan */}
         <div>
           <h2 className="text-sm font-medium text-gray-700 mb-3">Riwayat Pengajuan</h2>
           <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
@@ -170,7 +174,14 @@ export default function PengajuanStokPage() {
                   {statusBadge(req.status)}
                 </div>
                 <p className="text-xs text-gray-500">
-                  {req.qty_requested} unit • {new Date(req.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  {req.qty_requested} unit •{' '}
+                  {new Date(req.created_at).toLocaleString('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </p>
                 {req.status === 'rejected' && req.reject_reason && (
                   <p className="text-xs text-red-500 mt-1">Alasan: {req.reject_reason}</p>
@@ -181,5 +192,13 @@ export default function PengajuanStokPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PengajuanStokPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-gray-500">Memuat pengajuan stok...</div>}>
+      <PengajuanStokContent />
+    </Suspense>
   );
 }
