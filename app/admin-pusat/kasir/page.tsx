@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 
-type Product = { id: string; name: string; price: number };
+type Product = { id: string; name: string; price: number; tipe: 'barang' | 'jasa' };
 type CartItem = { product_id: string; name: string; price: number; qty: number };
 
 export default function KasirPusatPage() {
@@ -11,6 +11,8 @@ export default function KasirPusatPage() {
 
   const [storeId, setStoreId] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
+  const [qtyInputs, setQtyInputs] = useState<Record<string, number>>({});
+  const [filterTipe, setFilterTipe] = useState<'semua' | 'barang' | 'jasa'>('semua');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [message, setMessage] = useState('');
@@ -22,21 +24,34 @@ export default function KasirPusatPage() {
       if (store) setStoreId(store.id);
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`);
-      setProducts(await res.json());
+      const data = await res.json();
+      setProducts(data);
+
+      const initialQty: Record<string, number> = {};
+      data.forEach((p: Product) => {
+        initialQty[p.id] = 1;
+      });
+      setQtyInputs(initialQty);
     };
     fetchInitial();
   }, []);
 
+  const handleQtyChange = (productId: string, value: number) => {
+    setQtyInputs((prev) => ({ ...prev, [productId]: Math.max(1, value) }));
+  };
+
   const addToCart = (product: Product) => {
+    const qty = qtyInputs[product.id] || 1;
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
       if (existing) {
         return prev.map((item) =>
-          item.product_id === product.id ? { ...item, qty: item.qty + 1 } : item
+          item.product_id === product.id ? { ...item, qty: item.qty + qty } : item
         );
       }
-      return [...prev, { product_id: product.id, name: product.name, price: product.price, qty: 1 }];
+      return [...prev, { product_id: product.id, name: product.name, price: product.price, qty }];
     });
+    setQtyInputs((prev) => ({ ...prev, [product.id]: 1 }));
   };
 
   const removeFromCart = (productId: string) => {
@@ -44,6 +59,9 @@ export default function KasirPusatPage() {
   };
 
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const filteredProducts = products.filter(
+    (p) => filterTipe === 'semua' || p.tipe === filterTipe
+  );
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -85,23 +103,48 @@ export default function KasirPusatPage() {
 
       <div className="p-6 grid grid-cols-2 gap-6">
         <div>
-          <h2 className="text-sm font-medium text-gray-700 mb-3">Daftar Produk</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-medium text-gray-700">Daftar Produk</h2>
+            <div className="flex bg-gray-100 rounded-md p-1">
+              {(['semua', 'barang', 'jasa'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setFilterTipe(tab)}
+                  className={`px-3 py-1 text-xs rounded ${
+                    filterTipe === tab ? 'bg-white text-gray-900 font-medium shadow-sm' : 'text-gray-500'
+                  }`}
+                >
+                  {tab === 'semua' ? 'Semua' : tab === 'barang' ? 'Barang' : 'Jasa'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
-            {products.length === 0 && (
-              <p className="text-sm text-gray-500 p-4">Memuat produk...</p>
+            {filteredProducts.length === 0 && (
+              <p className="text-sm text-gray-500 p-4">Tidak ada produk di kategori ini</p>
             )}
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <div key={product.id} className="flex items-center justify-between px-4 py-3">
                 <div>
                   <p className="text-sm text-gray-800">{product.name}</p>
                   <p className="text-xs text-gray-500">Rp{product.price.toLocaleString('id-ID')}</p>
                 </div>
-                <button
-                  onClick={() => addToCart(product)}
-                  className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-md hover:bg-gray-800"
-                >
-                  Tambah
-                </button>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={qtyInputs[product.id] ?? 1}
+                    onChange={(e) => handleQtyChange(product.id, Number(e.target.value))}
+                    className="w-14 border border-gray-300 rounded-md px-2 py-1.5 text-sm text-center"
+                  />
+                  <button
+                    onClick={() => addToCart(product)}
+                    className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-md hover:bg-gray-800"
+                  >
+                    Tambah
+                  </button>
+                </div>
               </div>
             ))}
           </div>

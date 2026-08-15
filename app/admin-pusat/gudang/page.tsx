@@ -34,13 +34,13 @@ export default function ManajemenGudangPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newSku, setNewSku] = useState('');
-  const [newPrice, setNewPrice] = useState(0);
-  const [newQty, setNewQty] = useState(0);
-
+  const [newPrice, setNewPrice] = useState<number | ''>(0);
+  const [newQty, setNewQty] = useState<number | ''>(0);
+  const [newTipe, setNewTipe] = useState<'barang' | 'jasa'>('barang');
   // modal stok masuk/keluar
   const [movementTarget, setMovementTarget] = useState<InventoryRow | null>(null);
   const [movementTipe, setMovementTipe] = useState<'masuk' | 'keluar'>('masuk');
-  const [movementQty, setMovementQty] = useState(1);
+  const [movementQty, setMovementQty] = useState<number | ''>(1);
   const [movementNote, setMovementNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -74,7 +74,10 @@ export default function ManajemenGudangPage() {
   );
 
   const handleAddProduct = async () => {
-    if (!newName || newPrice <= 0) {
+    const parsedPrice = Number(newPrice);
+    const parsedQty = Number(newQty);
+
+    if (!newName || newPrice === '' || parsedPrice <= 0) {
       setMessage('Nama dan harga barang wajib diisi dengan benar');
       return;
     }
@@ -83,7 +86,7 @@ export default function ManajemenGudangPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName, sku: newSku, price: newPrice, store_id: storeId, initial_qty: newQty }),
+        body: JSON.stringify({ name: newName, sku: newSku, price: parsedPrice, tipe: newTipe, store_id: storeId, initial_qty: Number.isFinite(parsedQty) ? parsedQty : 0 }),
       });
       const result = await res.json();
 
@@ -94,7 +97,7 @@ export default function ManajemenGudangPage() {
 
       setMessage('Barang baru berhasil ditambahkan.');
       setShowAddModal(false);
-      setNewName(''); setNewSku(''); setNewPrice(0); setNewQty(0);
+      setNewName(''); setNewSku(''); setNewPrice(0); setNewQty(0); setNewTipe('barang');
       fetchInventories(storeId);
     } finally {
       setSubmitting(false);
@@ -102,7 +105,9 @@ export default function ManajemenGudangPage() {
   };
 
   const handleMovementSubmit = async () => {
-    if (!movementTarget || movementQty <= 0) return;
+    const parsedMovementQty = Number(movementQty);
+
+    if (!movementTarget || movementQty === '' || parsedMovementQty <= 0) return;
     setSubmitting(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-movements`, {
@@ -112,7 +117,7 @@ export default function ManajemenGudangPage() {
           product_id: movementTarget.product_id,
           store_id: storeId,
           tipe: movementTipe,
-          qty: movementQty,
+          qty: parsedMovementQty,
           catatan: movementNote,
         }),
       });
@@ -245,15 +250,33 @@ export default function ManajemenGudangPage() {
 
             <label className="block text-sm text-gray-700 mb-1">Nama Barang</label>
             <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3" />
-
+            <label className="block text-sm text-gray-700 mb-1">Tipe</label>
+            <select value={newTipe} onChange={(e) => setNewTipe(e.target.value as 'barang' | 'jasa')} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3">
+            <option value="barang">Barang</option>
+            <option value="jasa">Jasa</option>
+            </select>
             <label className="block text-sm text-gray-700 mb-1">SKU (opsional)</label>
             <input value={newSku} onChange={(e) => setNewSku(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3" />
 
             <label className="block text-sm text-gray-700 mb-1">Harga</label>
-            <input type="number" value={newPrice} onChange={(e) => setNewPrice(Number(e.target.value))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3" />
+            <input
+              type="number"
+              min={1}
+              inputMode="numeric"
+              value={newPrice}
+              onChange={(e) => setNewPrice(e.target.value === '' ? '' : Number(e.target.value))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3"
+            />
 
             <label className="block text-sm text-gray-700 mb-1">Stok Awal</label>
-            <input type="number" value={newQty} onChange={(e) => setNewQty(Number(e.target.value))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4" />
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={newQty}
+              onChange={(e) => setNewQty(e.target.value === '' ? '' : Number(e.target.value))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4"
+            />
 
             <button onClick={handleAddProduct} disabled={submitting} className="w-full bg-gray-900 text-white text-sm py-2.5 rounded-md disabled:bg-gray-400">
               {submitting ? 'Menyimpan...' : 'Simpan Barang'}
@@ -276,7 +299,14 @@ export default function ManajemenGudangPage() {
             <p className="text-xs text-gray-500 mb-3">Stok saat ini: {movementTarget.quantity}</p>
 
             <label className="block text-sm text-gray-700 mb-1">Jumlah</label>
-            <input type="number" min={1} value={movementQty} onChange={(e) => setMovementQty(Number(e.target.value))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3" />
+            <input
+              type="number"
+              min={1}
+              inputMode="numeric"
+              value={movementQty}
+              onChange={(e) => setMovementQty(e.target.value === '' ? '' : Number(e.target.value))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3"
+            />
 
             <label className="block text-sm text-gray-700 mb-1">Catatan (opsional)</label>
             <input value={movementNote} onChange={(e) => setMovementNote(e.target.value)} placeholder="misal: pembelian dari supplier" className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4" />

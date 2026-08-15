@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 import { PackagePlus } from 'lucide-react';
-
+import { useSearchParams } from 'next/navigation';
 type Product = { id: string; name: string };
 type StockRequestRow = {
   id: string;
@@ -16,13 +16,13 @@ type StockRequestRow = {
 
 export default function PengajuanStokPage() {
   const supabase = createClient();
-
+  const searchParams = useSearchParams();
   const [storeId, setStoreId] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [requests, setRequests] = useState<StockRequestRow[]>([]);
 
   const [selectedProduct, setSelectedProduct] = useState('');
-  const [qty, setQty] = useState(1);
+  const [qty, setQty] = useState<number | ''>(1);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -31,7 +31,7 @@ export default function PengajuanStokPage() {
     setRequests(await res.json());
   };
 
-  useEffect(() => {
+ useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -49,12 +49,17 @@ export default function PengajuanStokPage() {
       setProducts(await res.json());
 
       fetchRequests(profile.store_id);
+
+      const preselect = searchParams.get('product');
+      if (preselect) setSelectedProduct(preselect);
     };
     init();
   }, []);
 
   const handleSubmit = async () => {
-    if (!selectedProduct || qty <= 0) {
+    const parsedQty = Number(qty);
+
+    if (!selectedProduct || qty === '' || parsedQty <= 0) {
       setMessage('Pilih produk dan masukkan jumlah yang valid');
       return;
     }
@@ -131,8 +136,10 @@ export default function PengajuanStokPage() {
             <input
               type="number"
               min={1}
+              inputMode="numeric"
               value={qty}
-              onChange={(e) => setQty(Number(e.target.value))}
+              onChange={(e) => setQty(e.target.value === '' ? '' : Number(e.target.value))}
+              placeholder="Masukkan jumlah"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 mb-4"
             />
 
