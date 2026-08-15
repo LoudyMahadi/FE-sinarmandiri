@@ -24,3 +24,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+input,
+select,
+textarea {
+  color: #111827; /* gray-900, hitam pekat biar kebaca jelas */
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9CA3AF; /* gray-400, abu-abu buat placeholder doang */
+}
