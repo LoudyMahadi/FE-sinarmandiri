@@ -1,9 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
-import { useCabangSession } from '@/context/cabangsessioncontext';
 import { createClient } from '@/lib/supabase/client';
-import { KeyRound, ShieldCheck } from 'lucide-react';
+import { KeyRound, ShieldCheck, Search } from 'lucide-react';
 
 type Product = { id: string; name: string; price: number; tipe: 'barang' | 'jasa' };
 type CartItem = { product_id: string; name: string; price: number; qty: number };
@@ -11,22 +10,34 @@ type ActiveStaff = { staff_pin_id: string; staff_name: string; is_supervisor: bo
 
 export default function KasirCabangPage() {
   const supabase = createClient();
-  const { setActiveStaff: setSessionActiveStaff } = useCabangSession();
 
   const [storeId, setStoreId] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
+  const [stockMap, setStockMap] = useState<Record<string, number>>({});
   const [qtyInputs, setQtyInputs] = useState<Record<string, number>>({});
-  const [filterTipe, setFilterTipe] = useState<'semua' | 'barang' | 'jasa'>('semua');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterTipe, setFilterTipe] = useState<'semua' | 'barang' | 'jasa'>('semua');
 
   const [activeStaff, setActiveStaff] = useState<ActiveStaff | null>(null);
   const [showPinModal, setShowPinModal] = useState(true);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
+
+  const fetchStock = async (store_id: string) => {
+    const { data } = await supabase
+      .from('inventories')
+      .select('product_id, quantity')
+      .eq('store_id', store_id);
+
+    const map: Record<string, number> = {};
+    (data ?? []).forEach((row) => { map[row.product_id] = row.quantity; });
+    setStockMap(map);
+  };
 
   useEffect(() => {
     const fetchInitial = async () => {
@@ -39,7 +50,10 @@ export default function KasirCabangPage() {
         .eq('id', user.id)
         .single();
 
-      if (profile?.store_id) setStoreId(profile.store_id);
+      if (profile?.store_id) {
+        setStoreId(profile.store_id);
+        fetchStock(profile.store_id);
+      }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`);
       const data = await res.json();
@@ -73,14 +87,11 @@ export default function KasirCabangPage() {
         return;
       }
 
-      const nextStaff = {
+      setActiveStaff({
         staff_pin_id: result.staff_pin_id,
         staff_name: result.staff_name,
         is_supervisor: result.is_supervisor,
-      };
-
-      setActiveStaff(nextStaff);
-      setSessionActiveStaff(nextStaff);
+      });
       setShowPinModal(false);
       setPinInput('');
     } catch (err) {
@@ -92,17 +103,32 @@ export default function KasirCabangPage() {
 
   const handleSwitchStaff = () => {
     setActiveStaff(null);
-    setSessionActiveStaff(null);
     setShowPinModal(true);
     setCart([]);
   };
 
-  const handleQtyChange = (productId: string, value: number) => {
-    setQtyInputs((prev) => ({ ...prev, [productId]: Math.max(1, value) }));
+  const getRemainingStock = (productId: string, tipe: 'barang' | 'jasa') => {
+    if (tipe === 'jasa') return Infinity;
+    const stock = stockMap[productId] ?? 0;
+    const inCart = cart.find((c) => c.product_id === productId)?.qty ?? 0;
+    return stock - inCart;
+  };
+
+  const handleQtyChange = (productId: string, value: number, tipe: 'barang' | 'jasa') => {
+    const remaining = getRemainingStock(productId, tipe);
+    const capped = Math.min(Math.max(1, value), remaining === Infinity ? value : Math.max(remaining, 1));
+    setQtyInputs((prev) => ({ ...prev, [productId]: capped }));
   };
 
   const addToCart = (product: Product) => {
-    const qty = qtyInputs[product.id] || 1;
+    const remaining = getRemainingStock(product.id, product.tipe);
+    if (remaining <= 0) {
+      setMessage(`Stok ${product.name} habis`);
+      return;
+    }
+
+    const qty = Math.min(qtyInputs[product.id] || 1, remaining === Infinity ? (qtyInputs[product.id] || 1) : remaining);
+
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
       if (existing) {
@@ -113,6 +139,7 @@ export default function KasirCabangPage() {
       return [...prev, { product_id: product.id, name: product.name, price: product.price, qty }];
     });
     setQtyInputs((prev) => ({ ...prev, [product.id]: 1 }));
+    setMessage('');
   };
 
   const removeFromCart = (productId: string) => {
@@ -120,9 +147,12 @@ export default function KasirCabangPage() {
   };
 
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const filteredProducts = products.filter(
-    (p) => filterTipe === 'semua' || p.tipe === filterTipe
-  );
+
+  const filteredProducts = products.filter((p) => {
+    const matchTipe = filterTipe === 'semua' || p.tipe === filterTipe;
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    return matchTipe && matchSearch;
+  });
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -151,6 +181,7 @@ export default function KasirCabangPage() {
 
       setMessage(`Transaksi berhasil! Total: Rp${result.total.toLocaleString('id-ID')}`);
       setCart([]);
+      fetchStock(storeId);
     } finally {
       setSubmitting(false);
     }
@@ -204,34 +235,58 @@ export default function KasirCabangPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
-              {filteredProducts.length === 0 && (
-                <p className="text-sm text-gray-500 p-4">Tidak ada produk di kategori ini</p>
-              )}
+            <div className="relative mb-3">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Cari nama produk..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm text-gray-800"
+              />
+            </div>
 
-              {filteredProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between px-4 py-3">
-                  <div>
-                    <p className="text-sm text-gray-800">{product.name}</p>
-                    <p className="text-xs text-gray-500">Rp{product.price.toLocaleString('id-ID')}</p>
+            <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+              {filteredProducts.length === 0 && (
+                <p className="text-sm text-gray-500 p-4">Produk tidak ditemukan</p>
+              )}
+              {filteredProducts.map((product) => {
+                const remaining = getRemainingStock(product.id, product.tipe);
+                const isOutOfStock = remaining <= 0;
+                return (
+                  <div key={product.id} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm text-gray-800">{product.name}</p>
+                      <p className="text-xs text-gray-500">
+                        Rp{product.price.toLocaleString('id-ID')}
+                        {product.tipe === 'barang' && (
+                          <span className={isOutOfStock ? 'text-red-500 ml-2' : 'text-gray-400 ml-2'}>
+                            • Stok: {stockMap[product.id] ?? 0}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={remaining === Infinity ? undefined : remaining}
+                        value={qtyInputs[product.id] ?? 1}
+                        onChange={(e) => handleQtyChange(product.id, Number(e.target.value), product.tipe)}
+                        disabled={isOutOfStock}
+                        className="w-14 border border-gray-300 rounded-md px-2 py-1.5 text-sm text-center disabled:bg-gray-100"
+                      />
+                      <button
+                        onClick={() => addToCart(product)}
+                        disabled={isOutOfStock}
+                        className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-md hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        {isOutOfStock ? 'Habis' : 'Tambah'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={1}
-                      value={qtyInputs[product.id] ?? 1}
-                      onChange={(e) => handleQtyChange(product.id, Number(e.target.value))}
-                      className="w-14 border border-gray-300 rounded-md px-2 py-1.5 text-sm text-center"
-                    />
-                    <button
-                      onClick={() => addToCart(product)}
-                      className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-md hover:bg-gray-800"
-                    >
-                      Tambah
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
