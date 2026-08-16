@@ -18,6 +18,8 @@ type TicketDetail = {
   description: string;
   urgency: string;
   status: string;
+  sparepart_needed: string | null;
+  sparepart_fulfilled: boolean;
   created_at: string;
   store: { name: string } | null;
 };
@@ -34,7 +36,8 @@ export default function TiketDetailPage() {
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
-
+  const [sparepartInput, setSparepartInput] = useState('');
+  const [submittingSparepart, setSubmittingSparepart] = useState(false);
   const fetchDetail = async () => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tickets/${params.id}`);
     const result = await res.json();
@@ -77,7 +80,22 @@ export default function TiketDetailPage() {
       setSubmitting(false);
     }
   };
+      const handleSubmitSparepart = async () => {
+    if (!ticket || !sparepartInput) return;
+    setSubmittingSparepart(true);
 
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tickets/${ticket.id}/sparepart`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sparepart_needed: sparepartInput }),
+      });
+      setSparepartInput('');
+      fetchDetail();
+    } finally {
+      setSubmittingSparepart(false);
+    }
+  };
   if (!ticket) {
     return (
       <div>
@@ -138,7 +156,37 @@ export default function TiketDetailPage() {
               {message && <p className="text-sm text-red-500 mt-2">{message}</p>}
             </div>
           )}
+              {ticket.status !== 'selesai' && (
+              <div className="bg-white rounded-lg border border-gray-200 p-5 mt-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">Kebutuhan Sparepart (opsional)</p>
 
+              {ticket.sparepart_needed && (
+              <div className={`text-sm rounded-md px-3 py-2.5 mb-3 ${
+              ticket.sparepart_fulfilled ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'
+          }`}>
+        <span className="font-medium">{ticket.sparepart_needed}</span>
+        <span className="block text-xs mt-0.5">
+          {ticket.sparepart_fulfilled ? 'Sudah tersedia' : 'Menunggu pengadaan dari pusat'}
+        </span>
+      </div>
+    )}
+
+    <textarea
+      value={sparepartInput}
+      onChange={(e) => setSparepartInput(e.target.value)}
+      rows={2}
+      placeholder="misal: Butuh cartridge printer Canon G2010..."
+      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-3"
+    />
+    <button
+      onClick={handleSubmitSparepart}
+      disabled={submittingSparepart || !sparepartInput}
+      className="border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-md hover:bg-gray-50 disabled:opacity-50"
+    >
+      {submittingSparepart ? 'Menyimpan...' : 'Catat Kebutuhan Sparepart'}
+    </button>
+  </div>
+)}
           {ticket.status === 'selesai' && (
             <div className="bg-green-50 text-green-700 text-sm rounded-md px-4 py-3">
               Tiket ini sudah selesai ditangani.
