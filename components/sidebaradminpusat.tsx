@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   Warehouse,
   ClipboardCheck,
+  History,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -29,9 +30,10 @@ export default function SidebarAdminPusat() {
   const menuItems = [
     { label: 'Dashboard', path: '/admin-pusat/dashboard', icon: LayoutDashboard },
     { label: 'Transaksi Kasir', path: '/admin-pusat/kasir', icon: ShoppingCart },
+    { label: 'Riwayat Transaksi', path: '/admin-pusat/riwayat-transaksi', icon: History },
     { label: 'Manajemen Gudang', path: '/admin-pusat/gudang', icon: Warehouse },
     { label: 'Persetujuan Stok', path: '/admin-pusat/persetujuan-stok', icon: ClipboardCheck },
-  ];
+];
 
   return (
     <aside

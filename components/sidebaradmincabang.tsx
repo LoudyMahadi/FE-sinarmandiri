@@ -11,6 +11,7 @@ import {
   PackagePlus,
   PackageSearch,
   Wrench,
+  History,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -37,6 +38,7 @@ export default function SidebarAdminCabang() {
     { label: 'Cek Stok Cabang', path: '/admin-cabang/stok', icon: PackageSearch },
     { label: 'Pengajuan Stok', path: '/admin-cabang/pengajuan-stok', icon: PackagePlus },
     { label: 'Lapor Kerusakan Mesin', path: '/admin-cabang/lapor-mesin', icon: Wrench },
+    { label: 'Riwayat Transaksi', path: '/admin-cabang/riwayat-transaksi', icon: History },
 ];
 
   return (
