@@ -3,10 +3,9 @@ import { useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 import { KeyRound, ShieldCheck, Search } from 'lucide-react';
-
+import { useCabangSession } from '@/context/cabangsessioncontext';
 type Product = { id: string; name: string; price: number; tipe: 'barang' | 'jasa' };
 type CartItem = { product_id: string; name: string; price: number; qty: number };
-type ActiveStaff = { staff_pin_id: string; staff_name: string; is_supervisor: boolean };
 
 export default function KasirCabangPage() {
   const supabase = createClient();
@@ -22,7 +21,7 @@ export default function KasirCabangPage() {
   const [search, setSearch] = useState('');
   const [filterTipe, setFilterTipe] = useState<'semua' | 'barang' | 'jasa'>('semua');
 
-  const [activeStaff, setActiveStaff] = useState<ActiveStaff | null>(null);
+  const { activeStaff, setActiveStaff } = useCabangSession();
   const [showPinModal, setShowPinModal] = useState(true);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');

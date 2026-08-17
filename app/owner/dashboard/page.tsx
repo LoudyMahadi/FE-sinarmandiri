@@ -192,9 +192,12 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
-            <Link href="/owner/laporan/penjualan" className="block w-full mt-3 border border-gray-300 rounded-md py-2 text-sm text-gray-700 text-center hover:bg-gray-50 transition">
-                  Lihat Laporan Penjualan
-          </Link>
+            <Link
+              href="/owner/laporan/penjualan"
+              className="block w-full mt-3 bg-[#1A2233] text-white rounded-md py-2 text-sm text-center hover:bg-[#151d2d] transition"
+            >
+              Lihat Laporan Penjualan
+            </Link>
           </div>
 
           <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -206,9 +209,12 @@ export default function DashboardPage() {
                 <p className="text-xs text-gray-400">{req.from_store?.name}</p>
               </div>
             ))}
-           <Link href="/owner/laporan/inventori" className="block w-full mt-3 border border-gray-300 rounded-md py-2 text-sm text-gray-700 text-center hover:bg-gray-50 transition">
-  Lihat Semua Permintaan
-</Link>
+            <Link
+              href="/owner/laporan/inventori"
+              className="block w-full mt-3 bg-[#1A2233] text-white rounded-md py-2 text-sm text-center hover:bg-[#151d2d] transition"
+            >
+              Lihat Semua Permintaan
+            </Link>
           </div>
 
           <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -225,9 +231,12 @@ export default function DashboardPage() {
                 </span>
               </div>
             ))}
-            <Link href="/owner/laporan/perbaikan-mesin" className="block w-full mt-3 border border-gray-300 rounded-md py-2 text-sm text-gray-700 text-center hover:bg-gray-50 transition">
-  Lihat Semua Tiket
-</Link>
+            <Link
+              href="/owner/laporan/perbaikan-mesin"
+              className="block w-full mt-3 bg-[#1A2233] text-white rounded-md py-2 text-sm text-center hover:bg-[#151d2d] transition"
+            >
+              Lihat Semua Tiket
+            </Link>
           </div>
         </div>
       </div>
