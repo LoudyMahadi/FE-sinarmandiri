@@ -64,6 +64,7 @@ export default function Sidebar() {
         <nav className="p-3 text-sm">
           <Link
             href="/owner/dashboard"
+            title={collapsed ? 'Dashboard' : undefined}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-md mb-1 ${
               isActive('/owner/dashboard')
                 ? 'bg-blue-500 text-white font-medium'
@@ -93,6 +94,7 @@ export default function Sidebar() {
                 <Link
                   key={item.path}
                   href={item.path}
+                  title={collapsed ? item.label : undefined}
                   className={`block px-3 py-2 rounded-md text-sm ${
                     isActive(item.path)
                       ? 'bg-blue-500 text-white font-medium'
@@ -107,6 +109,7 @@ export default function Sidebar() {
 
           <Link
             href="/owner/manajemen-user"
+            title={collapsed ? 'Manajemen User' : undefined}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-md mb-1 ${
               isActive('/owner/manajemen-user')
                 ? 'bg-blue-500 text-white font-medium'
@@ -119,6 +122,7 @@ export default function Sidebar() {
 
           <button
             onClick={handleLogout}
+            title={collapsed ? 'Keluar' : undefined}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-red-400 hover:bg-red-500/10 mt-1"
           >
             <LogOut size={18} className="shrink-0" />

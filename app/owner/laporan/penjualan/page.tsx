@@ -214,13 +214,13 @@ export default function LaporanPenjualanPage() {
 
           <button
             onClick={handleExportPDF}
-            className="bg-white border border-gray-300 rounded-md px-4 py-2 text-sm text-gray-700 font-medium hover:bg-gray-50"
+            className="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 shadow-sm transition hover:border-red-300 hover:bg-red-600 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-200"
           >
             PDF
           </button>
           <button
             onClick={handleExportExcel}
-            className="bg-white border border-gray-300 rounded-md px-4 py-2 text-sm text-gray-700 font-medium hover:bg-gray-50"
+            className="inline-flex items-center justify-center rounded-md border border-emerald-500 bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-200"
           >
             Excel
           </button>

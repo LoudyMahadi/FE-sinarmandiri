@@ -73,6 +73,7 @@ export default function SidebarAdminCabang() {
             <Link
               key={path}
               href={path}
+              title={collapsed ? label : undefined}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-md mb-1 ${
                 isActive(path) ? 'bg-blue-500 text-white font-medium' : 'text-slate-300 hover:bg-white/5'
               }`}
@@ -84,6 +85,7 @@ export default function SidebarAdminCabang() {
 
           <button
             onClick={handleLogout}
+            title={collapsed ? 'Keluar' : undefined}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-red-400 hover:bg-red-500/10 mt-1"
           >
             <LogOut size={18} className="shrink-0" />

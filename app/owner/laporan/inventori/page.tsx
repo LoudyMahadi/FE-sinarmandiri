@@ -69,9 +69,9 @@ export default function InventoriPage() {
           />
           <button
             onClick={handleExportExcel}
-            className="bg-white border border-gray-300 rounded-md px-4 py-2 text-sm text-gray-700 font-medium hover:bg-gray-50"
+            className="inline-flex items-center gap-2 rounded-md border border-emerald-500 bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-200"
           >
-            Export Excel
+            <span>Export Excel</span>
           </button>
         </div>
 
