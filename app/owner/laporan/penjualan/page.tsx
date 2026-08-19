@@ -289,7 +289,7 @@ export default function LaporanPenjualanPage() {
                   <td className="px-4 py-3">
                     <button
                       onClick={() => handleLihatDetail(trx)}
-                      className="border border-gray-300 rounded-md px-3 py-1 text-xs text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition"
+                      className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-600 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
                     >
                       Lihat Detail
                     </button>
