@@ -107,7 +107,7 @@ export default function Sidebar() {
             </div>
           )}
 
-          <Link
+          {/* <Link
             href="/owner/manajemen-user"
             title={collapsed ? 'Manajemen User' : undefined}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-md mb-1 ${
@@ -118,7 +118,7 @@ export default function Sidebar() {
           >
             <Users size={18} className="shrink-0" />
             {!collapsed && <span>Manajemen User</span>}
-          </Link>
+          </Link> */}
 
           <button
             onClick={handleLogout}
