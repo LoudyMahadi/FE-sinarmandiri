@@ -52,7 +52,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: 'radial-gradient(ellipse at 55% 45%, #c8e0ff 0%, #e5f4ff 52%, #eef9ff 100%)' }}
+    >
       <div className="w-full max-w-sm">
       <Image
   src="/logosm.png"
@@ -120,7 +123,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#1A2233] hover:bg-[#151d2d] disabled:bg-slate-400 text-white text-sm font-medium py-2.5 rounded-lg transition shadow-sm"
+              className="w-full bg-sky-500 hover:bg-sky-600 disabled:bg-slate-400 text-white text-sm font-medium py-2.5 rounded-lg transition shadow-sm"
             >
               {loading ? 'Memproses...' : 'Masuk'}
             </button>
