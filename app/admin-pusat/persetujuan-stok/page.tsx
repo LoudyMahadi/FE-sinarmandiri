@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 import { Check, X } from 'lucide-react';
+import { useToast } from '@/components/ToastProvider';
 
 type PendingRequest = {
   id: string;
@@ -14,13 +15,13 @@ type PendingRequest = {
 
 export default function PersetujuanStokPage() {
   const supabase = createClient();
+  const toast = useToast();
 
   const [pusatStoreId, setPusatStoreId] = useState('');
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [message, setMessage] = useState('');
 
   const fetchPending = async () => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-requests/pending`);
@@ -37,60 +38,63 @@ export default function PersetujuanStokPage() {
   }, []);
 
   const handleApprove = async (id: string) => {
-    setProcessingId(id);
-    setMessage('');
-    const { data: { user } } = await supabase.auth.getUser();
+  setProcessingId(id);
+  const { data: { user } } = await supabase.auth.getUser();
 
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-requests/${id}/approve`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approved_by: user?.id, pusat_store_id: pusatStoreId }),
-      });
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-requests/${id}/approve`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved_by: user?.id, pusat_store_id: pusatStoreId }),
+    });
+    const result = await res.json();
+
+    if (!res.ok) {
+      toast.error('Gagal Menyetujui', result.error);
+      return;
+    }
+
+    toast.success('Pengajuan Disetujui!', 'Stok berhasil dipindahkan dari gudang pusat ke cabang.');
+    fetchPending();
+  } catch (err) {
+    toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
+  } finally {
+    setProcessingId(null);
+  }
+};
+
+const handleReject = async (id: string) => {
+  setProcessingId(id);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-requests/${id}/reject`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved_by: user?.id, reject_reason: rejectReason || 'Tidak ada alasan diberikan' }),
+    });
+
+    if (res.ok) {
+      toast.info('Pengajuan Ditolak', 'Alasan penolakan telah diteruskan ke cabang.');
+      setRejectingId(null);
+      setRejectReason('');
+      fetchPending();
+    } else {
       const result = await res.json();
-
-      if (!res.ok) {
-        setMessage(`Gagal: ${result.error}`);
-      } else {
-        setMessage('Pengajuan disetujui, stok berhasil dipindahkan ke cabang.');
-        fetchPending();
-      }
-    } finally {
-      setProcessingId(null);
+      toast.error('Gagal Menolak', result.error);
     }
-  };
-
-  const handleReject = async (id: string) => {
-    setProcessingId(id);
-    const { data: { user } } = await supabase.auth.getUser();
-
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-requests/${id}/reject`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approved_by: user?.id, reject_reason: rejectReason || 'Tidak ada alasan diberikan' }),
-      });
-
-      if (res.ok) {
-        setMessage('Pengajuan ditolak.');
-        setRejectingId(null);
-        setRejectReason('');
-        fetchPending();
-      }
-    } finally {
-      setProcessingId(null);
-    }
-  };
+  } catch (err) {
+    toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
+  } finally {
+    setProcessingId(null);
+  }
+};
 
   return (
     <div>
       <Topbar title="Persetujuan Pengajuan Stok" subtitle="Kelola permintaan stok dari seluruh cabang" />
 
       <div className="p-6">
-        {message && (
-          <div className="bg-blue-50 text-blue-700 text-sm rounded-md px-4 py-2.5 mb-4">{message}</div>
-        )}
-
         <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
           {requests.length === 0 && (
             <p className="text-sm text-gray-500 p-6 text-center">Tidak ada pengajuan yang menunggu persetujuan</p>

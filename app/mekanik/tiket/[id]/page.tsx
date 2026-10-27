@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 import { Check } from 'lucide-react';
+import { useToast } from '@/components/ToastProvider';
 
 const STATUS_FLOW = [
   { key: 'dilaporkan', label: 'Dilaporkan' },
@@ -30,12 +31,12 @@ export default function TiketDetailPage() {
   const params = useParams();
   const router = useRouter();
   const supabase = createClient();
+  const toast = useToast();
 
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
   const [sparepartInput, setSparepartInput] = useState('');
   const [submittingSparepart, setSubmittingSparepart] = useState(false);
   const fetchDetail = async () => {
@@ -52,50 +53,62 @@ export default function TiketDetailPage() {
   const currentIndex = ticket ? STATUS_FLOW.findIndex((s) => s.key === ticket.status) : -1;
   const nextStatus = currentIndex >= 0 && currentIndex < 3 ? STATUS_FLOW[currentIndex + 1] : null;
 
-  const handleUpdateStatus = async () => {
-    if (!nextStatus || !ticket) return;
-    setSubmitting(true);
-    setMessage('');
-    const { data: { user } } = await supabase.auth.getUser();
+const handleUpdateStatus = async () => {
+  if (!nextStatus || !ticket) return;
+  setSubmitting(true);
+  const { data: { user } } = await supabase.auth.getUser();
+  const targetLabel = nextStatus.label;
+  const isFinal = nextStatus.key === 'selesai';
 
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tickets/${ticket.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus.key, note, mechanic_id: user?.id }),
-      });
-      const result = await res.json();
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tickets/${ticket.id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: nextStatus.key, note, mechanic_id: user?.id }),
+    });
+    const result = await res.json();
 
-      if (!res.ok) {
-        setMessage(`Gagal: ${result.error}`);
-        return;
-      }
-
-      setNote('');
-      fetchDetail();
-      if (nextStatus.key === 'selesai') {
-        setTimeout(() => router.push('/mekanik/tiket'), 1000);
-      }
-    } finally {
-      setSubmitting(false);
+    if (!res.ok) {
+      toast.error('Gagal Memperbarui Status', result.error);
+      return;
     }
-  };
-      const handleSubmitSparepart = async () => {
-    if (!ticket || !sparepartInput) return;
-    setSubmittingSparepart(true);
 
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tickets/${ticket.id}/sparepart`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sparepart_needed: sparepartInput }),
-      });
-      setSparepartInput('');
-      fetchDetail();
-    } finally {
-      setSubmittingSparepart(false);
+    toast.success('Status Tiket Diperbarui!', `${ticket.machine_name} kini berstatus ${targetLabel}.`);
+    setNote('');
+    fetchDetail();
+    if (isFinal) setTimeout(() => router.push('/mekanik/tiket'), 1000);
+  } catch (err) {
+    toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+const handleSubmitSparepart = async () => {
+  if (!ticket || !sparepartInput) return;
+  setSubmittingSparepart(true);
+
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tickets/${ticket.id}/sparepart`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sparepart_needed: sparepartInput }),
+    });
+
+    if (!res.ok) {
+      toast.error('Gagal Mencatat Sparepart', 'Silakan coba lagi.');
+      return;
     }
-  };
+
+    toast.success('Kebutuhan Sparepart Dicatat!', 'Owner dapat melihatnya di Laporan Perbaikan Mesin.');
+    setSparepartInput('');
+    fetchDetail();
+  } catch (err) {
+    toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
+  } finally {
+    setSubmittingSparepart(false);
+  }
+};
   if (!ticket) {
     return (
       <div>
@@ -153,7 +166,6 @@ export default function TiketDetailPage() {
               >
                 {submitting ? 'Memproses...' : `Tandai ${nextStatus.label}`}
               </button>
-              {message && <p className="text-sm text-red-500 mt-2">{message}</p>}
             </div>
           )}
               {ticket.status !== 'selesai' && (

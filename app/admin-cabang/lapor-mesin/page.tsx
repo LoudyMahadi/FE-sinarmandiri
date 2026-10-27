@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 import { AlertTriangle } from 'lucide-react';
+import { useToast } from '@/components/ToastProvider';
 
 type Ticket = {
   id: string;
@@ -24,13 +25,13 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function LaporKerusakanPage() {
   const supabase = createClient();
+  const toast = useToast();
 
   const [storeId, setStoreId] = useState('');
   const [machineName, setMachineName] = useState('');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState('normal');
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
   const [myTickets, setMyTickets] = useState<Ticket[]>([]);
 
   const fetchMyTickets = async (store_id: string) => {
@@ -53,44 +54,43 @@ export default function LaporKerusakanPage() {
   }, []);
 
   const handleSubmit = async () => {
-    if (!machineName || !storeId) {
-      setMessage('Nama mesin wajib diisi');
+  if (!machineName || !storeId) {
+    toast.error('Data Belum Lengkap', 'Nama mesin wajib diisi.');
+    return;
+  }
+  setSubmitting(true);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tickets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        store_id: storeId,
+        machine_name: machineName,
+        description,
+        urgency,
+        reported_by: user?.id,
+      }),
+    });
+    const result = await res.json();
+
+    if (!res.ok) {
+      toast.error('Laporan Gagal Dikirim', result.error);
       return;
     }
-    setSubmitting(true);
-    setMessage('');
-    const { data: { user } } = await supabase.auth.getUser();
 
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tickets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          store_id: storeId,
-          machine_name: machineName,
-          description,
-          urgency,
-          reported_by: user?.id,
-        }),
-      });
-      const result = await res.json();
-
-      if (!res.ok) {
-        setMessage(`Gagal: ${result.error}`);
-        return;
-      }
-
-      setMessage('Laporan kerusakan berhasil dikirim ke mekanik.');
-      setMachineName('');
-      setDescription('');
-      setUrgency('normal');
-      fetchMyTickets(storeId);
-    } catch (err) {
-      setMessage('Gagal terhubung ke server');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    toast.success('Laporan Kerusakan Terkirim!', `Tiket untuk ${machineName} telah diteruskan ke mekanik.`);
+    setMachineName('');
+    setDescription('');
+    setUrgency('normal');
+    fetchMyTickets(storeId);
+  } catch (err) {
+    toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   return (
     <div>
@@ -137,7 +137,6 @@ export default function LaporKerusakanPage() {
               {submitting ? 'Mengirim...' : 'Kirim Laporan'}
             </button>
 
-            {message && <p className="text-sm text-gray-600 mt-3">{message}</p>}
           </div>
         </div>
 

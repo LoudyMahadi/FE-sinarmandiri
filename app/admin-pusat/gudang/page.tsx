@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 import { Plus, ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react';
+import { useToast } from '@/components/ToastProvider';
 
 type InventoryRow = {
   id: string;
@@ -22,14 +23,13 @@ type Movement = {
 };
 
 export default function ManajemenGudangPage() {
+  const toast = useToast();
   const supabase = createClient();
 
   const [storeId, setStoreId] = useState('');
   const [inventories, setInventories] = useState<InventoryRow[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [search, setSearch] = useState('');
-  const [message, setMessage] = useState('');
-
   // modal tambah barang baru
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
@@ -77,28 +77,49 @@ export default function ManajemenGudangPage() {
     const parsedPrice = Number(newPrice);
     const parsedQty = Number(newQty);
 
-    if (!newName || newPrice === '' || parsedPrice <= 0) {
-      setMessage('Nama dan harga barang wajib diisi dengan benar');
+    if (
+      !newName.trim() ||
+      newPrice === '' ||
+      !Number.isFinite(parsedPrice) ||
+      parsedPrice <= 0 ||
+      !Number.isFinite(parsedQty) ||
+      parsedQty < 0
+    ) {
+      toast.error('Data Belum Lengkap', 'Isi nama, harga yang valid, dan stok awal minimal 0.');
       return;
     }
+
     setSubmitting(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName, sku: newSku, price: parsedPrice, tipe: newTipe, store_id: storeId, initial_qty: Number.isFinite(parsedQty) ? parsedQty : 0 }),
+        body: JSON.stringify({
+          name: newName.trim(),
+          sku: newSku,
+          price: parsedPrice,
+          tipe: newTipe,
+          store_id: storeId,
+          initial_qty: parsedQty,
+        }),
       });
       const result = await res.json();
 
       if (!res.ok) {
-        setMessage(`Gagal: ${result.error}`);
+        toast.error('Gagal Menambah Barang', result.error ?? 'Silakan coba lagi.');
         return;
       }
 
-      setMessage('Barang baru berhasil ditambahkan.');
+      toast.success('Barang Berhasil Ditambahkan!', `${newName} telah masuk ke daftar barang gudang pusat.`);
       setShowAddModal(false);
-      setNewName(''); setNewSku(''); setNewPrice(0); setNewQty(0); setNewTipe('barang');
+      setNewName('');
+      setNewSku('');
+      setNewPrice(0);
+      setNewQty(0);
+      setNewTipe('barang');
       fetchInventories(storeId);
+    } catch {
+      toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
     } finally {
       setSubmitting(false);
     }
@@ -106,8 +127,11 @@ export default function ManajemenGudangPage() {
 
   const handleMovementSubmit = async () => {
     const parsedMovementQty = Number(movementQty);
+    if (!movementTarget || movementQty === '' || !Number.isFinite(parsedMovementQty) || parsedMovementQty <= 0) {
+      toast.error('Jumlah Tidak Valid', 'Masukkan jumlah stok lebih dari 0.');
+      return;
+    }
 
-    if (!movementTarget || movementQty === '' || parsedMovementQty <= 0) return;
     setSubmitting(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-movements`, {
@@ -124,16 +148,21 @@ export default function ManajemenGudangPage() {
       const result = await res.json();
 
       if (!res.ok) {
-        setMessage(`Gagal: ${result.error}`);
+        toast.error('Gagal Mencatat Stok', result.error ?? 'Silakan coba lagi.');
         return;
       }
 
-      setMessage(`Stok ${movementTipe} berhasil dicatat.`);
+      toast.success(
+        'Mutasi Stok Berhasil!',
+        `Stok ${movementTarget.product?.name} telah diperbarui menjadi ${result.new_quantity}. Riwayat pergerakan berhasil dicatat.`
+      );
       setMovementTarget(null);
       setMovementQty(1);
       setMovementNote('');
       fetchInventories(storeId);
       fetchMovements(storeId);
+    } catch {
+      toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
     } finally {
       setSubmitting(false);
     }
@@ -144,10 +173,6 @@ export default function ManajemenGudangPage() {
       <Topbar title="Manajemen Gudang" subtitle="Kelola data barang & stok gudang pusat" />
 
       <div className="p-6">
-        {message && (
-          <div className="bg-blue-50 text-blue-700 text-sm rounded-md px-4 py-2.5 mb-4">{message}</div>
-        )}
-
         <div className="grid grid-cols-3 gap-6">
           {/* daftar barang */}
           <div className="col-span-2">

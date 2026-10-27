@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/components/ToastProvider';
 
 type Ticket = {
   id: string;
@@ -33,6 +34,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function LaporanPerbaikanMesinPage() {
   const supabase = createClient();
+  const toast = useToast();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [statusFilter, setStatusFilter] = useState('semua');
   const [search, setSearch] = useState('');
@@ -47,15 +49,26 @@ export default function LaporanPerbaikanMesinPage() {
     };
     fetchAll();
   }, []);
-      const handleMarkFulfilled = async (ticketId: string) => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tickets/${ticketId}/sparepart/fulfilled`, {
-      method: 'PATCH',
-    });
-    const res = await supabase
-      .from('machine_tickets')
-      .select('id, machine_name, urgency, status, sparepart_needed, sparepart_fulfilled, created_at, updated_at, store:stores(name)')
-      .order('created_at', { ascending: false });
-    setTickets((res.data as any) ?? []);
+  const handleMarkFulfilled = async (ticketId: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/tickets/${ticketId}/sparepart/fulfilled`,
+        { method: 'PATCH' }
+      );
+      if (!response.ok) {
+        toast.error('Gagal Memperbarui Sparepart', 'Tidak dapat menandai sparepart tersedia.');
+        return;
+      }
+
+      toast.success('Sparepart Ditandai Tersedia', 'Mekanik dapat melanjutkan proses perbaikan.');
+      const res = await supabase
+        .from('machine_tickets')
+        .select('id, machine_name, urgency, status, sparepart_needed, sparepart_fulfilled, created_at, updated_at, store:stores(name)')
+        .order('created_at', { ascending: false });
+      setTickets((res.data as any) ?? []);
+    } catch {
+      toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
+    }
   };
 
   const filtered = tickets.filter((t) => {

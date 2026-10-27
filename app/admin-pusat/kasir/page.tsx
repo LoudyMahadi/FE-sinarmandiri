@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react';
 import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 import { Search } from 'lucide-react';
+import { useToast } from '@/components/ToastProvider';
 
 type Product = { id: string; name: string; price: number; tipe: 'barang' | 'jasa' };
 type CartItem = { product_id: string; name: string; price: number; qty: number };
 
 export default function KasirPusatPage() {
+  const toast = useToast();
   const supabase = createClient();
 
   const [storeId, setStoreId] = useState('');
@@ -64,27 +66,26 @@ export default function KasirPusatPage() {
     setQtyInputs((prev) => ({ ...prev, [productId]: capped }));
   };
 
-  const addToCart = (product: Product) => {
-    const remaining = getRemainingStock(product.id, product.tipe);
-    if (remaining <= 0) {
-      setMessage(`Stok ${product.name} habis`);
-      return;
+ const addToCart = (product: Product) => {
+  const remaining = getRemainingStock(product.id, product.tipe);
+  if (remaining <= 0) {
+    toast.error('Stok Habis', `Stok ${product.name} sudah habis.`);
+    return;
+  }
+
+  const qty = Math.min(qtyInputs[product.id] || 1, remaining === Infinity ? (qtyInputs[product.id] || 1) : remaining);
+
+  setCart((prev) => {
+    const existing = prev.find((item) => item.product_id === product.id);
+    if (existing) {
+      return prev.map((item) =>
+        item.product_id === product.id ? { ...item, qty: item.qty + qty } : item
+      );
     }
-
-    const qty = Math.min(qtyInputs[product.id] || 1, remaining === Infinity ? (qtyInputs[product.id] || 1) : remaining);
-
-    setCart((prev) => {
-      const existing = prev.find((item) => item.product_id === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.product_id === product.id ? { ...item, qty: item.qty + qty } : item
-        );
-      }
-      return [...prev, { product_id: product.id, name: product.name, price: product.price, qty }];
-    });
-    setQtyInputs((prev) => ({ ...prev, [product.id]: 1 }));
-    setMessage('');
-  };
+    return [...prev, { product_id: product.id, name: product.name, price: product.price, qty }];
+  });
+  setQtyInputs((prev) => ({ ...prev, [product.id]: 1 }));
+};
 
   const removeFromCart = (productId: string) => {
     setCart((prev) => prev.filter((item) => item.product_id !== productId));
@@ -98,40 +99,39 @@ export default function KasirPusatPage() {
     return matchTipe && matchSearch;
   });
 
-  const handleCheckout = async () => {
-    if (cart.length === 0) {
-      setMessage('Keranjang masih kosong');
+const handleCheckout = async () => {
+  if (cart.length === 0) {
+    toast.error('Keranjang Kosong', 'Tambahkan minimal satu produk sebelum membayar.');
+    return;
+  }
+  setSubmitting(true);
+
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        store_id: storeId,
+        items: cart.map((item) => ({ product_id: item.product_id, qty: item.qty })),
+        payment_method: paymentMethod,
+      }),
+    });
+    const result = await res.json();
+
+    if (!res.ok) {
+      toast.error('Transaksi Gagal', result.error);
       return;
     }
-    setSubmitting(true);
-    setMessage('');
 
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transactions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          store_id: storeId,
-          items: cart.map((item) => ({ product_id: item.product_id, qty: item.qty })),
-          payment_method: paymentMethod,
-        }),
-      });
-      const result = await res.json();
-
-      if (!res.ok) {
-        setMessage(`Gagal: ${result.error}`);
-        return;
-      }
-
-      setMessage(`Transaksi berhasil! Total: Rp${result.total.toLocaleString('id-ID')}`);
-      setCart([]);
-      fetchStock(storeId); // refresh sisa stok setelah transaksi
-    } catch (err) {
-      setMessage('Gagal terhubung ke server');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    toast.success('Transaksi Berhasil!', `Pembayaran Rp${result.total.toLocaleString('id-ID')} telah dicatat dan stok diperbarui.`);
+    setCart([]);
+    fetchStock(storeId);
+  } catch (err) {
+    toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   return (
     <div>

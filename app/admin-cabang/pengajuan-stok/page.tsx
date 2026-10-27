@@ -4,6 +4,7 @@ import Topbar from '@/components/topbar';
 import { createClient } from '@/lib/supabase/client';
 import { PackagePlus } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { useToast } from '@/components/ToastProvider';
 
 type Product = { id: string; name: string };
 type StockRequestRow = {
@@ -17,6 +18,7 @@ type StockRequestRow = {
 
 function PengajuanStokContent() {
   const supabase = createClient();
+  const toast = useToast();
   const searchParams = useSearchParams();
   const [storeId, setStoreId] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
@@ -25,7 +27,6 @@ function PengajuanStokContent() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [qty, setQty] = useState<number | ''>(1);
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
 
   const fetchRequests = async (store_id: string) => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-requests/store/${store_id}`);
@@ -63,41 +64,43 @@ function PengajuanStokContent() {
   const handleSubmit = async () => {
     const parsedQty = Number(qty);
 
-    if (!selectedProduct || qty === '' || parsedQty <= 0) {
-      setMessage('Pilih produk dan masukkan jumlah yang valid');
+    if (!selectedProduct || qty === '' || !Number.isFinite(parsedQty) || parsedQty <= 0) {
+      toast.error('Data Belum Lengkap', 'Pilih barang dan masukkan jumlah yang valid.');
       return;
     }
     setSubmitting(true);
-    setMessage('');
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stock-requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from_store_id: storeId,
           product_id: selectedProduct,
-          qty_requested: qty,
+          qty_requested: parsedQty,
           requested_by: user?.id,
         }),
       });
       const result = await res.json();
 
       if (!res.ok) {
-        setMessage(`Gagal: ${result.error}`);
+        toast.error('Pengajuan Gagal', result.error || 'Terjadi kesalahan saat mengirim pengajuan.');
         return;
       }
 
-      setMessage('Pengajuan berhasil dikirim ke pusat, menunggu persetujuan.');
+      toast.success(
+        'Pengajuan Terkirim!',
+        'Permintaan stok telah dikirim ke pusat dan menunggu persetujuan.'
+      );
       setSelectedProduct('');
       setQty(1);
       fetchRequests(storeId);
-    } catch (err) {
-      setMessage('Gagal terhubung ke server');
+    } catch {
+      toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
     } finally {
       setSubmitting(false);
     }
@@ -157,7 +160,6 @@ function PengajuanStokContent() {
               {submitting ? 'Mengirim...' : 'Kirim Pengajuan'}
             </button>
 
-            {message && <p className="text-sm text-gray-600 mt-3">{message}</p>}
           </div>
         </div>
 

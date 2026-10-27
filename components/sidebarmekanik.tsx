@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ClipboardList, History, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
 
 export default function SidebarMekanik() {
   const pathname = usePathname();
@@ -29,9 +30,15 @@ export default function SidebarMekanik() {
         <div className="p-5 border-b border-white/10 flex items-center justify-between">
           {!collapsed && (
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
-                <span className="text-white font-semibold text-sm">S</span>
-              </div>
+              <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shrink-0 p-1">
+  <Image
+    src="/logosm.png"
+    alt="Logo Toko Sinar Mandiri"
+    width={28}
+    height={28}
+    className="object-contain"
+  />
+</div>
               <div>
                 <p className="font-semibold text-white text-sm leading-tight">Toko Sinar Mandiri</p>
                 <p className="text-xs text-slate-400">Mekanik</p>

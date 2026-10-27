@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -53,15 +54,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo / Nama toko */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-[#1A2233] rounded-xl mx-auto mb-4 flex items-center justify-center shadow-sm">
-            <span className="text-white font-semibold text-2xl">S</span>
-          </div>
-          <h1 className="text-xl font-semibold text-gray-900">Toko Sinar Mandiri</h1>
-          <p className="text-sm text-gray-400 mt-1">Sistem Informasi Operasional</p>
-        </div>
-
+      <Image
+  src="/logosm.png"
+  alt="Logo Toko Sinar Mandiri"
+  width={72}
+  height={72}
+  className="mx-auto mb-4 object-contain"
+/>
         {/* Card form */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
           <form onSubmit={handleLogin} className="space-y-4">

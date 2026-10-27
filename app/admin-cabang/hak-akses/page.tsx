@@ -4,6 +4,7 @@ import Topbar from '@/components/topbar';
 import { useCabangSession } from '@/context/cabangsessioncontext';
 import { createClient } from '@/lib/supabase/client';
 import { ShieldAlert, ShieldCheck, Plus, X } from 'lucide-react';
+import { useToast } from '@/components/ToastProvider';
 
 type FinancialRecord = {
   id: string;
@@ -17,6 +18,7 @@ type FinancialRecord = {
 export default function HakAksesPage() {
   const { activeStaff } = useCabangSession();
   const supabase = createClient();
+  const toast = useToast();
 
   const [storeId, setStoreId] = useState('');
   const [totalPemasukan, setTotalPemasukan] = useState(0);
@@ -27,7 +29,6 @@ export default function HakAksesPage() {
   const [kategori, setKategori] = useState('');
   const [nominal, setNominal] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
 
   const fetchData = async (store_id: string) => {
     const { data: transactions } = await supabase
@@ -57,34 +58,40 @@ export default function HakAksesPage() {
   const totalPengeluaran = pengeluaranList.reduce((sum, r) => sum + r.nominal, 0);
   const labaBersih = totalPemasukan - totalPengeluaran;
 
-  const handleSubmit = async () => {
-    if (!desc || nominal <= 0) {
-      setMessage('Deskripsi dan nominal wajib diisi dengan benar');
+ const handleSubmit = async () => {
+  if (!desc || nominal <= 0) {
+    toast.error('Data Belum Lengkap', 'Deskripsi dan nominal wajib diisi dengan benar.');
+    return;
+  }
+  setSubmitting(true);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/financial-records`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ store_id: storeId, deskripsi: desc, kategori, nominal, dibuat_oleh: user?.id }),
+    });
+    const result = await res.json();
+
+    if (!res.ok) {
+      toast.error('Gagal Mencatat Pengeluaran', result.error);
       return;
     }
-    setSubmitting(true);
-    const { data: { user } } = await supabase.auth.getUser();
 
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/financial-records`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ store_id: storeId, deskripsi: desc, kategori, nominal, dibuat_oleh: user?.id }),
-      });
-      const result = await res.json();
-
-      if (!res.ok) {
-        setMessage(`Gagal: ${result.error}`);
-        return;
-      }
-
-      setShowAddModal(false);
-      setDesc(''); setKategori(''); setNominal(0);
-      fetchData(storeId);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    toast.success(
+      'Pengeluaran Berhasil Dicatat!',
+      `${desc} sebesar Rp${nominal.toLocaleString('id-ID')} telah masuk ke laporan laba-rugi cabang.`
+    );
+    setShowAddModal(false);
+    setDesc(''); setKategori(''); setNominal(0);
+    fetchData(storeId);
+  } catch (err) {
+    toast.error('Gagal Terhubung', 'Tidak dapat menghubungi server.');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   if (!activeStaff) {
     return (
@@ -199,8 +206,6 @@ export default function HakAksesPage() {
 
             <label className="block text-sm text-gray-700 mb-1">Nominal</label>
             <input type="number" value={nominal} onChange={(e) => setNominal(Number(e.target.value))} className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4" />
-
-            {message && <p className="text-sm text-red-500 mb-3">{message}</p>}
 
             <button onClick={handleSubmit} disabled={submitting} className="w-full bg-gray-900 text-white text-sm py-2.5 rounded-md disabled:bg-gray-400">
               {submitting ? 'Menyimpan...' : 'Simpan Pengeluaran'}
